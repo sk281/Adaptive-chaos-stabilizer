@@ -7,7 +7,7 @@ A simple, interpretable heuristic for delaying divergence in chaotic dynamical s
 - **Periodic resets**: Stronger nudges at fixed intervals (e.g., every 20n light, every 45n strong) to handle accumulated drift.
 
 ## Results (from tests)
-- Lorenz attractor (t=150–300): ~95–96% error reduction vs baseline
+- Lorenz attractor (t=150–300): ~86–96% error reduction vs baseline
 - Restricted 3-body: similar ~95% reduction with per-body error handling
 - Outperforms standard adaptive step-size in long runs
 
