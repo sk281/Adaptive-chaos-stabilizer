@@ -1,21 +1,15 @@
-# Chaos Control Nudge
+# Error Suppression Demo
 
-A simple, interpretable heuristic for delaying divergence in chaotic dynamical systems.
+This repository demonstrates two simple models of numerical error growth:
 
-## Core Idea
-- **Every tick**: Small sign-reversed nudge (±0.01 × t) when error growth direction changes (push back when accelerating, allow breathing room when stabilizing).
-- **Periodic resets**: Stronger nudges at fixed intervals (e.g., every 20n light, every 45n strong) to handle accumulated drift.
+1. **Vector error accumulation**, where error is treated as a vector and its norm
+   can decrease due to cancellation.
+2. **Scalar error accumulation**, where error is treated as a non-canceling
+   magnitude budget.
 
-## Results (from tests)
-- Lorenz attractor (t=150–300): ~86–96% error reduction vs baseline
-- Restricted 3-body: similar ~95% reduction with per-body error handling
-- Outperforms standard adaptive step-size in long runs
+A simple control mechanism removes a fixed amount of error per iteration
+to illustrate **error suppression**, not chaos suppression.
 
-## Usage
-See `Controled_Lorenz.py` for the implementation.
-
-## Status
-Scouting prototype — not building a product.  
-Open to passive equity/partnership if someone wants to productize for real applications (space, medical, turbulence, etc.). DM or email me.
+The underlying dynamics are not modified.
 
 License: MIT
