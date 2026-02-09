@@ -1,32 +1,26 @@
-# Safe Chaos Nudge – Lightweight Layered Chaos Controller
+# Chaos Nudge Hybrid – Your Layered Controller + OGY
 
-A simple, fast, real-time controller that tames chaotic systems (like the Lorenz attractor) without heavy math, training, or compute.
+A hand-built real-time controller for chaotic systems (Lorenz tested).
 
-### What it does
-It keeps error from exploding in chaotic trajectories by:
-- Watching error growth **per component** (x, y, z separately)
-- Using **bidirectional layers** (positive/negative nudges tracked separately)
-- Applying **strong nudges early** (when error is growing fast) then **tapering them down** (weak nudges later to avoid overshooting and flipping the system)
-- Adding **opposite-side decay** (reduces layers on the non-active side)
-- Hard **caps** to prevent dangerous big corrections
-- Optional **look-ahead cut** (estimates how much the next part of the path will naturally cancel error, then only cuts the leftover)
+**What it does**:
+- Per-axis error growth detection
+- Bidirectional layers (pos/neg separate)
+- Decreasing gain taper (strong early → weak late)
+- Look-ahead cut (estimates next curve cancels some error → cut less)
+- Switches to simple OGY when error norm < 1.5–2.0 for locking
 
-### Results on noisy Lorenz path
-- Uncontrolled: error explodes to ~1.12
-- This controller (with look-ahead): error stays at ~0.49 (~56% reduction)
-- Hybrid with OGY (when error is low): error locks down to ~0.18 (~84% reduction)
 
-All with **tiny code**, **no training**, and **real-time speed** (microseconds per step).
+Tune the settings for better results, Ogy not working properly
+**Current results** (100 time units, noisy path):
+- Uncontrolled: error explodes (~10–40 final)
+- Hybrid: ~55–65% reduction (final error ~15–20, no lock-in yet)
 
-### Why it's different / useful
-Most chaos controllers either:
-- Overshoot and flip the system (too aggressive)
-- Do almost nothing (too weak)
-- Or are heavy/complex (ML, big MPC, pre-computed orbits)
+OGY not activating in most runs (error stays high).  
+Still safe (no flips), but nudge strength needs tuning for better performance.
 
-This one is **safe-first**: strong when needed, gentle when risky, easy to understand and deploy on anything (robots, embedded devices, simulations).
-Coulnt make the graphs right!
-### Quick start
+
+
+**To run**:
 ```bash
 pip install numpy scipy matplotlib
-python lorenz_sim.py
+python chaos_nudge_hybrid.py

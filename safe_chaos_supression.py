@@ -13,11 +13,11 @@ def lorenz(t, y):
                      x * (rho - z) - y_,
                      x * y_ - beta * z])
 
-# Your ChaosController class (with look-ahead cut)
+# ChaosController (your full version with look-ahead)
 class ChaosController:
     def __init__(self, base_strength=0.01, growth_threshold=0.05,
                  opposite_decay=0.85, max_layers=10, max_nudge=0.05,
-                 lookahead_cancel_frac=0.3):  # fraction next curve cancels
+                 lookahead_cancel_frac=0.3):
         self.base_strength = base_strength
         self.growth_threshold = growth_threshold
         self.opposite_decay = opposite_decay
@@ -37,7 +37,6 @@ class ChaosController:
         growth = (current_error - self.prev_error) / dt
         nudge = np.zeros(3)
 
-        # Expected natural cancel from next curve (your idea)
         expected_cancel = self.lookahead_cancel_frac * next_curve_intensity
         safe_error = np.maximum(current_error - expected_cancel, 0)
 
@@ -66,68 +65,63 @@ class ChaosController:
         self.prev_error = current_error.copy()
         return nudge
 
-# Simple OGY implementation (linear perturbation toward 2-period UPO)
+# Simple OGY
 class SimpleOGY:
     def __init__(self, A, B, u_star, epsilon=0.01):
-        self.A = A  # Jacobian at UPO
-        self.B = B  # Control input matrix (identity here)
-        self.u_star = u_star  # UPO fixed point
-        self.epsilon = epsilon  # max nudge size
+        self.A = A
+        self.B = B
+        self.u_star = u_star
+        self.epsilon = epsilon
 
     def compute_ogy_nudge(self, current_state):
         delta = current_state - self.u_star
-        # Simple linear OGY: u = - (C delta) where C = (B^T A)^{-1} B^T or similar
-        # Here we use pseudo-inverse approximation for simplicity
         nudge = -np.linalg.pinv(self.B.T @ self.A) @ (self.B.T @ delta)
         nudge = np.clip(nudge, -self.epsilon, self.epsilon)
         return nudge
 
-# Pre-detected 2-period UPO for Lorenz (approximate from literature)
-upo_point = np.array([np.sqrt(beta*(rho-1)), np.sqrt(beta*(rho-1)), rho-1])  # one point of 2-period orbit
-A_jacobian = np.array([[ -sigma, sigma, 0 ],
-                       [ rho - upo_point[2], -1, -upo_point[0] ],
-                       [ upo_point[1], upo_point[0], -beta ]])  # approx Jacobian
-B = np.eye(3)  # control on all states
-
+# UPO
+upo_point = np.array([np.sqrt(beta*(rho-1)), np.sqrt(beta*(rho-1)), rho-1])
+A_jacobian = np.array([[-sigma, sigma, 0],
+                       [rho - upo_point[2], -1, -upo_point[0]],
+                       [upo_point[1], upo_point[0], -beta]])
+B = np.eye(3)
 ogy = SimpleOGY(A_jacobian, B, upo_point, epsilon=0.01)
 
-# Full hybrid controller
-def hybrid_controller(t, state, controller, threshold=0.5):
-    error = state - np.array([np.sqrt(beta*(rho-1)), np.sqrt(beta*(rho-1)), rho-1])  # distance to UPO
+def hybrid_controller(t, state, controller, threshold=2.0):
+    error = state - upo_point
     norm_error = np.linalg.norm(error)
 
     if norm_error < threshold:
-        # OGY mode
+        print(f"OGY activated at t={t:.1f}, error norm={norm_error:.3f}")
         nudge = ogy.compute_ogy_nudge(state)
     else:
-        # Your layered nudge mode
-        nudge = controller.compute_nudge(error, 0.01, next_curve_intensity=0.5)  # dummy intensity
+        next_curve_intensity = 0.5  # dummy; replace with real if needed
+        nudge = controller.compute_nudge(error, 0.01, next_curve_intensity)
+        print(f"Layered nudge at t={t:.1f}, error norm={norm_error:.3f}")
 
     return nudge
 
-# Simulation parameters
+# Simulation
 t_span = (0, 100)
 t_eval = np.linspace(t_span[0], t_span[1], 10000)
 y0 = [1.0, 1.0, 1.0] + np.random.randn(3) * 0.01
+y0_array = np.array(y0)[:, np.newaxis]  # for broadcasting
 
-controller = ChaosController(base_strength=0.01, growth_threshold=0.05,
-                             opposite_decay=0.85, max_layers=10, max_nudge=0.05,
+controller = ChaosController(base_strength=0.1, growth_threshold=0.05,
+                             opposite_decay=0.85, max_layers=10, max_nudge=0.2,
                              lookahead_cancel_frac=0.3)
 
-# Run uncontrolled
+# Uncontrolled
 sol_unc = solve_ivp(lorenz, t_span, y0, t_eval=t_eval, method='RK45')
+error_unc = np.linalg.norm(sol_unc.y - y0_array, axis=0)
 
-# Run hybrid
+# Hybrid
 def hybrid_ode(t, y):
     nudge = hybrid_controller(t, y, controller)
     dy = lorenz(t, y) + nudge
     return dy
 
 sol_hybrid = solve_ivp(hybrid_ode, t_span, y0, t_eval=t_eval, method='RK45')
-
-# Correct error: distance from INITIAL STATE (y0), not from uncontrolled
-y0_array = np.array(y0)[:, np.newaxis]  # shape (3,1) for broadcasting
-error_unc = np.linalg.norm(sol_unc.y - y0_array, axis=0)
 error_hybrid = np.linalg.norm(sol_hybrid.y - y0_array, axis=0)
 
 # Plot
@@ -139,7 +133,7 @@ plt.ylabel('L2 Error from initial state')
 plt.title('Hybrid Chaos Control: Your Nudge + OGY')
 plt.legend()
 plt.grid(True)
-plt.yscale('log')  # optional: log scale makes long-term flattening easier to see
+plt.yscale('log')  # log scale to see flattening
 plt.show()
 
 final_reduction = 100 * (1 - error_hybrid[-1] / error_unc[-1])
