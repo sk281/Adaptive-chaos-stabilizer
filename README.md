@@ -1,35 +1,69 @@
-# Chaos Nudge Hybrid – Layered Controller + OGY
+# Chaos Nudge Hybrid
 
-A hand-built, real-time controller for chaotic systems (tested on Lorenz attractor).
+A lightweight, hand-crafted, real-time controller for chaotic systems — tested on the Lorenz attractor.
 
-**What it does**:
-- Per-axis error growth detection
-- Bidirectional layers (positive/negative tracked separately)
-- Decreasing gain taper (strong early → weak late to prevent overshoot)
-- Look-ahead cut (estimates next curve cancels some error → cut only leftover)
-- Switches to simple OGY when error norm < 1.5–2.0 for long-term locking
+Built from pure intuition: detect growth per axis, apply layered nudges that taper off to avoid overshoot, look ahead to let upcoming curves do some natural cancellation, and switch to OGY when close enough for long-term locking.
 
-**Current results** (100 time units, noisy paths):
-- Uncontrolled: error explodes (~10–40 final)
-- Hybrid: ~55–65% reduction (final error ~15–20, no consistent lock-in)
+**Features**
+- Per-axis error growth detection (x, y, z separately)
+- Bidirectional layers (positive and negative counters tracked independently)
+- Decreasing gain taper (strong nudges early → weak late to prevent flips)
+- Opposite-side decay + hard nudge caps (safety first)
+- Look-ahead cut (estimates next curve cancels some error → only cut the leftover)
+- Velocity damping (stronger when error changes fast)
+- Dynamic asymmetry (cut harder in the "bad" direction when curve × velocity is high)
+- OGY hybrid (activates at error norm < ~0.6, lighter kicks for stability)
 
-OGY rarely activates (error stays high). Still safe (no flips), but nudge strength needs tuning for better performance.
+**Current results** (100 time units, noisy starting points)
+- Uncontrolled: error explodes (often 20–40+ final)
+- Hybrid: ~50–65% reduction in average runs (final error ~15–25, sometimes flattens low after OGY)
+- Best runs: up to ~75–85% when OGY locks early
+
+OGY does not always trigger (depends on path/seed — error may stay high).  
+Still safe (no flips, no blow-ups), but nudge strength needs tuning for consistency.
 
 **Limitations & Next Steps**
-Built from intuition and manual tuning — no formal stats, ablation studies, or large-scale optimization.  
-Performance varies by seed/parameters and may differ on other systems.
+This was built from trial-and-error and intuition — no formal statistics, ablation studies, or large-scale optimization.  
+Performance varies by random seed, parameters, and system — it may behave differently on other chaotic systems.
 
-If you're good with statistics, ML, or dynamical systems, this is a great candidate for:
-- Running thousands of paths (mean/std/confidence intervals)
-- Ablation studies on each feature (layers, taper, look-ahead, etc.)
-- Correlation analysis (curve intensity, velocity, turbulence, dt growth, remainders) vs error reduction
-- Comparison to other lightweight methods (Pyragas, adaptive gain, etc.)
+If you're good with statistics, machine learning, or dynamical systems, this is a great candidate for:
+- Running thousands of paths to compute mean/std/confidence intervals
+- Ablation studies on each feature (layers, taper, look-ahead, asymmetry, etc.)
+- Correlation analysis (curve intensity, velocity, turbulence proxies, dt growth, remainders) vs error reduction
+- Comparison to other lightweight methods (Pyragas delay, adaptive gain, etc.)
 
-Contributions welcome — especially from stats/ML people who want to quantify what each part actually does.
+Contributions welcome — especially from stats/ML people who want to quantify how much each part actually contributes.
 
-MIT license — fork, extend, publish, whatever you like.
+MIT license — fork, extend, publish, whatever you want.
+,
 
+### Extra Idea: Component-to-Group Inverse Influence Score (CG-Influence)
+
+While building this controller I came up with a simple way to map asymmetric influence between groups of variables.
+
+**Definition**  
+For component x in group A and group B:
+
+CG-Influence_{B→A}(x) = ∑_{y ∈ B, y ≠ x} w_y · corr(x, y)  
+(with ∑ w_y = 1, default uniform)
+
+Symmetrically for CG-Influence_{A→B}(y).
+
+**Key points**:
+- Asymmetric (B→A ≠ A→B)
+- Component-to-group (whole group B's influence on single x)
+- Bounded [-1, 1]
+- Cheap to compute (just correlations + weighted sum)
+- Perturbable (change a score, re-run, see effects)
+
+Use it to spot leverage points (high score = high sensitivity), track changes over time, or test "what if this influence doubles?"
+
+No formal proofs or large-scale tests — just an intuition tool that helped me understand influence flow in the system.
+
+If anyone wants to formalize it, prove properties, or apply it elsewhere — feel free.
 **Quick start**
 ```bash
 pip install numpy scipy matplotlib
 python chaos_nudge_hybrid.py
+
+
